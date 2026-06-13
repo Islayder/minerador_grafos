@@ -1,0 +1,146 @@
+@startuml arquitetura-camadas
+title Arquitetura em camadas — github-collaboration-graph\nRepositório: giscus/giscus
+
+skinparam shadowing false
+skinparam componentStyle rectangle
+
+actor "Usuário" as usuario
+
+package "Camada de Apresentação (app)" as app #E8F4FD {
+  component [Main\n(CLI)] as main
+  component [ConsoleMenu] as console
+  component [DesktopMain\n(Swing)] as desktopMain
+  component [MainFrame] as mainFrame
+  component [DesktopController] as desktopCtrl
+  component [DemoApplicationService] as demoApp
+  component [RealCollectionApplicationService] as realApp
+  component [DemoDataFactory] as demoFactory
+}
+
+package "Camada de Coleta (github)" as github #FFF3E0 {
+  component [GitHubDataCollector] as collector
+  component [GitHubApiClient] as apiClient
+  component [GitHubJsonParser] as jsonParser
+  component [GitHubInteractionMapper] as mapper
+  component [CachingGitHubRawDataClient] as cacheClient
+}
+
+package "Camada de Domínio (model)" as model #EEEEEE {
+  component [RepositoryData] as repoData
+  component [GitHubInteraction] as interaction
+  component [GitHubUser] as user
+  component [InteractionType] as iType
+}
+
+package "Camada de Serviços (service)" as service #E8F5E9 {
+  component [GraphBuilderService] as builder
+  component [UserIndexMapper] as indexMapper
+  component [InteractionWeightResolver] as weights
+  component [GraphBuildResult] as buildResult
+  component [GraphSummaryService] as summary
+  component [GraphExportApplicationService] as exportApp
+  component [OutputReportService] as reportSvc
+  component [ComparativeGraphAnalysisService] as compareSvc
+}
+
+package "Camada de Grafos (graph)" as graph #F3E5F5 {
+  component [AbstractGraph] as abstractGraph
+}
+
+package "Implementações (graph.impl)" as graphImpl #EDE7F6 {
+  component [AdjacencyListGraph] as adjList
+}
+
+package "Camada de Análise (analysis)" as analysis #FFF8E1 {
+  component [GraphAnalysisService] as analysisSvc
+  component [PageRankAnalyzer\nBetweennessCentralityAnalyzer\n...] as analyzers
+}
+
+package "Camada de Exportação (export)" as export #E0F2F1 {
+  component [GexfExporter] as gexf
+  component [GephiPresentationExporter] as gephiPres
+}
+
+folder "Artefatos (output/)" as output {
+  file "comments-graph.gexf"
+  file "issue-closure-graph.gexf"
+  file "pull-request-graph.gexf"
+  file "integrated-graph.gexf"
+  file "integrated-graph-gephi.gexf"
+  file "graph-summary.txt"
+  file "integrated-analysis.txt"
+  file "comparative-analysis.txt"
+}
+
+cloud "API GitHub" as githubApi
+
+usuario --> main
+usuario --> desktopMain
+main --> console
+desktopMain --> mainFrame
+mainFrame --> desktopCtrl
+
+console --> realApp
+console --> demoApp
+console --> summary
+console --> exportApp
+console --> analysisSvc
+console --> reportSvc
+
+desktopCtrl --> realApp
+desktopCtrl --> demoApp
+desktopCtrl --> summary
+desktopCtrl --> exportApp
+desktopCtrl --> analysisSvc
+desktopCtrl --> reportSvc
+
+demoApp --> demoFactory
+demoApp --> builder
+realApp --> collector
+realApp --> builder
+
+collector --> cacheClient
+cacheClient --> apiClient
+apiClient --> githubApi
+collector --> jsonParser
+collector --> mapper
+mapper --> repoData
+
+demoFactory --> repoData
+builder --> repoData
+builder --> indexMapper
+builder --> weights
+builder --> adjList
+builder --> buildResult
+adjList --|> abstractGraph
+
+summary --> buildResult
+exportApp --> buildResult
+exportApp --> gexf
+exportApp --> gephiPres
+reportSvc --> summary
+reportSvc --> analysisSvc
+reportSvc --> compareSvc
+
+analysisSvc --> analyzers
+analysisSvc --> abstractGraph
+gexf --> abstractGraph
+gephiPres --> buildResult
+
+exportApp --> output
+reportSvc --> output
+
+note right of builder
+  Produz 4 grafos:
+  • comentários
+  • fechamento de issues
+  • pull requests
+  • integrado ponderado
+end note
+
+note bottom of output
+  GEXF → Gephi
+  TXT → relatórios textuais
+end note
+
+@enduml

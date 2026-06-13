@@ -1,0 +1,103 @@
+@startuml classes-dominio
+title Diagrama de classes de domínio — pacote model\nRepositório: giscus/giscus
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+package "br.pucminas.tgc.githubgraph.model" as model {
+
+  class GitHubUser <<entity>> {
+    - login : String
+    __
+    + getLogin() : String
+    equals/hashCode por login
+    --
+    Representa um colaborador (nó lógico)
+  }
+
+  enum InteractionType <<enumeration>> {
+    COMMENT
+    ISSUE_COMMENTED_BY_OTHER_USER
+    ISSUE_CLOSED
+    PR_REVIEW
+    PR_APPROVAL
+    PR_MERGE
+  }
+
+  class GitHubInteraction <<entity>> {
+    - sourceUser : GitHubUser
+    - targetUser : GitHubUser
+    - type : InteractionType
+    __
+    + getSourceUser() : GitHubUser
+    + getTargetUser() : GitHubUser
+    + getType() : InteractionType
+    --
+    Aresta lógica direcionada
+    source → target
+    sourceUser ≠ targetUser
+  }
+
+  class RepositoryData <<aggregate>> {
+    - owner : String
+    - repository : String
+    - interactions : List<GitHubInteraction>
+    - pullRequestsOpenedByUser : Map<String, Integer>
+    __
+    + getOwner() : String
+    + getRepository() : String
+    + getInteractions() : List
+    + getPullRequestsOpenedByUser() : Map
+    + getAllUsers() : Set<GitHubUser>
+    + getInteractionsByType(type) : List
+  }
+
+  class InteractionWeights <<constants>> {
+    {static} + COMMENT_ON_ISSUE_OR_PR : double = 2.0
+    {static} + ISSUE_OPENED_WITH_COMMENT : double = 3.0
+    {static} + ISSUE_CLOSED : double = 3.0
+    {static} + PR_REVIEW_OR_APPROVAL : double = 4.0
+    {static} + PR_MERGE : double = 5.0
+    --
+    Pesos fixos do enunciado
+    (usados em InteractionWeightResolver)
+  }
+}
+
+GitHubInteraction --> GitHubUser : sourceUser
+GitHubInteraction --> GitHubUser : targetUser
+GitHubInteraction --> InteractionType : type
+
+RepositoryData "1" *-- "0..*" GitHubInteraction : interactions
+RepositoryData ..> GitHubUser : usuários derivados\ndas interações
+
+InteractionType ..> InteractionWeights : pesos sugeridos
+
+note bottom of RepositoryData
+  **Agregado raiz**
+  • owner = giscus, repository = giscus
+  • Produzido por GitHubDataCollector
+    ou DemoDataFactory / StressDataFactory
+  • pullRequestsOpenedByUser: métrica
+    por autor — **não** gera GitHubInteraction
+end note
+
+note right of InteractionType
+  **Grafos separados (Etapa 1)**
+  • Grafo 1 (comentários):
+    COMMENT, ISSUE_COMMENTED_BY_OTHER_USER
+  • Grafo 2 (fechamento):
+    ISSUE_CLOSED
+  • Grafo 3 (pull requests):
+    PR_REVIEW, PR_APPROVAL, PR_MERGE
+end note
+
+note bottom of GitHubInteraction
+  Regras de domínio:
+  • Sem laços (source ≠ target)
+  • Direção fixa: quem age → quem recebe
+  • Comentário em issue gera dois tipos
+    (COMMENT + ISSUE_COMMENTED_BY_OTHER_USER)
+end note
+
+@enduml

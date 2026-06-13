@@ -1,0 +1,71 @@
+@startuml sequencia-demo-offline
+title Sequência — demonstração offline (plano B)\nOpção 3 do ConsoleMenu / modo offline do Desktop
+
+skinparam shadowing false
+
+actor Usuário
+
+participant "Main" as main
+participant "ConsoleMenu" as menu
+participant "DemoApplicationService" as demo
+participant "DemoDataFactory" as factory
+participant "GraphBuilderService" as builder
+participant "UserIndexMapper" as mapper
+participant "InteractionWeightResolver" as weights
+participant "AdjacencyListGraph" as graphs
+participant "GraphBuildResult" as result
+participant "GraphSummaryService" as summary
+
+alt CLI (opção 3)
+  Usuário -> main : java -jar ... (Main)
+  main -> menu : run()
+  Usuário -> menu : "3"
+  menu -> menu : runDemo()
+  menu -> demo : runDemo()
+else Desktop (modo offline)
+  Usuário -> menu : runOfflineMode()
+  note over menu : DesktopController\n(sem Swing na sequência)
+  menu -> demo : runDemo()
+end
+
+demo -> factory : createGiscusDemo()
+factory --> demo : RepositoryData\n(giscus/giscus, interações simuladas)
+
+demo -> builder : build(repositoryData)
+
+builder -> mapper : new UserIndexMapper(getAllUsers())
+builder -> graphs : new AdjacencyListGraph × 4
+
+loop cada GitHubInteraction
+  builder -> mapper : getIndex(source/target)
+  builder -> weights : resolve(type)
+  builder -> graphs : addEdge / setEdgeWeight\n(separados e integrado)
+end
+
+builder --> demo : GraphBuildResult
+
+demo --> menu : GraphBuildResult
+
+alt CLI
+  menu -> menu : lastBuildResult = resultado
+  menu -> summary : summarize(lastBuildResult)
+  summary --> menu : texto do resumo
+  menu --> Usuário : imprime resumo dos 4 grafos
+else Desktop
+  menu -> menu : lastBuildResult = resultado\ndataSourceStatus = OFFLINE
+  menu -> summary : summarize(lastBuildResult)
+  summary --> menu : texto do resumo
+  menu --> Usuário : retorna mensagem + resumo
+end
+
+note over factory
+  Dados simulados (alice, bob, carol…)
+  Não usa API GitHub
+end note
+
+note over menu
+  Contingência quando mineração real
+  (opção 2) falha ou não está disponível
+end note
+
+@enduml

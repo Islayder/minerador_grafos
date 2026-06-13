@@ -1,0 +1,62 @@
+@startuml sequencia-analise-grafo-integrado
+title Sequência — análise do grafo integrado\nOpção 5 do ConsoleMenu / DesktopController.analyzeIntegratedGraph()
+
+skinparam shadowing false
+
+actor Usuário
+
+participant "ConsoleMenu" as menu
+participant "GraphAnalysisService" as analysis
+participant "GraphBuildResult" as result
+participant "AbstractGraph" as graph
+participant "Analisadores" as analyzers
+participant "GraphMetricsReport" as report
+
+Usuário -> menu : opção 5 / analisar grafo integrado
+
+alt lastBuildResult == null
+  menu --> Usuário : "Nenhum grafo carregado..."
+else grafos carregados
+  menu -> analysis : analyze(lastBuildResult)
+
+  analysis -> result : getIntegratedGraph()
+  result --> analysis : AbstractGraph
+  analysis -> result : getPullRequestsOpenedByUser()
+  analysis -> result : getUserIndexMapper()
+
+  alt vertexCount > 8000
+    note over analysis : skipHeavy = true\nmétricas pesadas omitidas
+  else grafo normal
+    note over analysis : skipHeavy = false
+  end
+
+  analysis -> analyzers : grau (DegreeMetrics)
+  analysis -> analyzers : densidade (DensityAnalyzer)
+  analysis -> analyzers : PageRank
+  analysis -> analyzers : eigenvector
+  analysis -> analyzers : closeness
+  analysis -> analyzers : betweenness (Brandes)
+  analysis -> analyzers : clustering coefficient
+  analysis -> analyzers : assortatividade
+  analysis -> analyzers : comunidades (label propagation)
+  analysis -> analyzers : bridging ties (top 15)
+
+  note over analyzers
+    Todas as métricas calculadas
+    manualmente sobre AbstractGraph
+    (sem JGraphT / NetworkX)
+  end note
+
+  analysis -> report : new GraphMetricsReport(...)
+  analysis --> menu : GraphMetricsReport
+
+  menu -> analysis : formatReport(report, userIndexMapper)
+
+  loop seções 1–11
+    analysis --> menu : grau, densidade, PageRank,\neigenvector, closeness, betweenness,\nclustering, assortatividade,\ncomunidades, bridging ties,\nPRs abertos por autor
+  end
+
+  menu --> Usuário : relatório textual no terminal / JTextArea
+end
+
+@enduml

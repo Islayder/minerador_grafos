@@ -1,0 +1,70 @@
+@startuml fluxo-construcao-grafos
+title Fluxo de construção dos quatro grafos\nGraphBuilderService.build(RepositoryData)
+
+skinparam shadowing false
+
+start
+
+:Receber RepositoryData;
+
+:Criar UserIndexMapper\n(ordem alfabética de logins);
+:vertexCount = mapper.getUserCount();
+
+:Instanciar 4 × AdjacencyListGraph(vertexCount)\n• commentsGraph\n• issueClosureGraph\n• pullRequestGraph\n• integratedGraph;
+
+:Para cada GitHubInteraction em repositoryData;
+
+:source = mapper.getIndex(sourceUser);
+:target = mapper.getIndex(targetUser);
+:weight = InteractionWeightResolver.resolve(type);
+
+partition "Grafo separado (uma aresta por par ordenado)" {
+  if (type é COMMENT ou ISSUE_COMMENTED_BY_OTHER_USER?) then (sim)
+    :separateGraph = commentsGraph;
+  elseif (type é ISSUE_CLOSED?) then (sim)
+    :separateGraph = issueClosureGraph;
+  elseif (type é PR_REVIEW, PR_APPROVAL ou PR_MERGE?) then (sim)
+    :separateGraph = pullRequestGraph;
+  endif
+
+  if (separateGraph.hasEdge(source, target)?) then (não)
+    :separateGraph.addEdge(source, target);
+    :separateGraph.setEdgeWeight(source, target, weight);
+  else (sim)
+    :ignorar (peso fixo já definido na 1ª ocorrência);
+  endif
+}
+
+partition "Grafo integrado (pesos acumulados)" {
+  if (integratedGraph.hasEdge(source, target)?) then (sim)
+    :novoPeso = getEdgeWeight + weight;
+    :setEdgeWeight(source, target, novoPeso);
+  else (não)
+    :addEdge(source, target);
+    :setEdgeWeight(source, target, weight);
+  endif
+}
+
+if (mais interações?) then (sim)
+  :próxima interação;
+  detach
+  :Para cada GitHubInteraction em repositoryData;
+else (não)
+endif
+
+:Criar GraphBuildResult(\nmapper, 4 grafos,\npullRequestsOpenedByUser);
+
+:Retornar GraphBuildResult;
+
+stop
+
+note right
+  **Pesos no integrado**
+  COMMENT → 2.0
+  ISSUE_COMMENTED_BY_OTHER_USER → 3.0
+  ISSUE_CLOSED → 3.0
+  PR_REVIEW / PR_APPROVAL → 4.0
+  PR_MERGE → 5.0
+end note
+
+@enduml

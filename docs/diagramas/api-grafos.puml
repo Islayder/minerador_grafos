@@ -1,0 +1,149 @@
+@startuml api-grafos
+title API própria de grafos — Etapa 2\nGrafos simples, direcionados, com pesos
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+package "br.pucminas.tgc.githubgraph.graph" as graph {
+
+  abstract class AbstractGraph {
+    - vertexCount : int
+    - vertexWeights : double[]
+    - edgeWeights : Map<Long, Double>
+    - edgeCount : int
+    __
+    # internalHasEdge(u, v) : boolean
+    # internalAddEdge(u, v) : void
+    # internalRemoveEdge(u, v) : void
+    # validateVertex(v) : void
+    # validateDistinctVertices(u, v) : void
+    __
+    + getVertexCount() : int
+    + getEdgeCount() : int
+    + hasEdge(u, v) : boolean
+    + addEdge(u, v) : void
+    + removeEdge(u, v) : void
+    + isSucessor(u, v) : boolean
+    + isPredessor(u, v) : boolean
+    + isDivergent(u1,v1,u2,v2) : boolean
+    + isConvergent(u1,v1,u2,v2) : boolean
+    + isIncident(u, v, x) : boolean
+    + getVertexInDegree(u) : int
+    + getVertexOutDegree(u) : int
+    + setVertexWeight(v, w) : void
+    + getVertexWeight(v) : double
+    + setEdgeWeight(u, v, w) : void
+    + getEdgeWeight(u, v) : double
+    + isConnected() : boolean
+    + isEmptyGraph() : boolean
+    + isCompleteGraph() : boolean
+    + exportToGEPHI(path) : void
+    --
+    addEdge idempotente
+    sem laços (u ≠ v)
+    pesos em Map separado da topologia
+  }
+}
+
+package "br.pucminas.tgc.githubgraph.graph.impl" as impl {
+
+  class AdjacencyListGraph {
+    - adjacency : List<Set<Integer>>
+    - inDegrees : int[]
+    - outDegrees : int[]
+    __
+    + getOutgoingTargets(source) : int[]
+    + getVertexInDegree(u) : int
+    + getVertexOutDegree(u) : int
+    # internalHasEdge(u, v) : boolean
+    # internalAddEdge(u, v) : void
+    # internalRemoveEdge(u, v) : void
+    --
+    O(V + E) memória
+    usada na construção dos grafos
+  }
+
+  class AdjacencyMatrixGraph {
+    - adjacency : boolean[][]
+    __
+    # internalHasEdge(u, v) : boolean
+    # internalAddEdge(u, v) : void
+    # internalRemoveEdge(u, v) : void
+    --
+    O(1) consulta de aresta
+    demonstrada em GraphApiDemo
+  }
+}
+
+package "br.pucminas.tgc.githubgraph.graph.exception" as exc {
+
+  class InvalidVertexException <<exception>> {
+    índice fora de [0, V-1]
+  }
+
+  class LoopNotAllowedException <<exception>> {
+    tentativa de laço (u → u)
+  }
+
+  class InconsistentGraphOperationException <<exception>> {
+    peso em aresta inexistente
+  }
+}
+
+package "br.pucminas.tgc.githubgraph.export" as export {
+
+  class GexfExporter <<utility>> {
+    {static} + export(graph, path) : void
+    --
+    GEXF 1.2, arestas direcionadas
+    atributo weight por aresta
+  }
+
+  class GexfFormat <<utility>> {
+    formatação XML / pesos
+  }
+}
+
+package "br.pucminas.tgc.githubgraph.graph.demo" as demo {
+
+  class GraphApiDemonstrator {
+    + demonstrate(factory, name, gexfPath) : void
+    --
+    exercita todas as operações públicas
+  }
+
+  class GraphApiDemo {
+    {static} + main(args) : void
+    --
+    app separada (Etapa 2)
+  }
+}
+
+AdjacencyListGraph -up-|> AbstractGraph
+AdjacencyMatrixGraph -up-|> AbstractGraph
+
+AbstractGraph ..> GexfExporter : exportToGEPHI()
+GexfExporter ..> GexfFormat
+GexfExporter ..> AdjacencyListGraph : getOutgoingTargets\n(otimização)
+
+AbstractGraph ..> InvalidVertexException
+AbstractGraph ..> LoopNotAllowedException
+AbstractGraph ..> InconsistentGraphOperationException
+
+GraphApiDemo ..> GraphApiDemonstrator
+GraphApiDemonstrator ..> AbstractGraph
+GraphApiDemonstrator ..> AdjacencyListGraph
+GraphApiDemonstrator ..> AdjacencyMatrixGraph
+
+note bottom of AbstractGraph
+  **Contrato validado por**
+  AbstractGraphContractTest
+  (matriz e lista de adjacência)
+end note
+
+note right of AdjacencyListGraph
+  GraphBuilderService instancia
+  4 × AdjacencyListGraph
+end note
+
+@enduml

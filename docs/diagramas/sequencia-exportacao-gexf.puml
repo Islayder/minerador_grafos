@@ -1,0 +1,62 @@
+@startuml sequencia-exportacao-gexf
+title Sequência — exportação de todos os grafos para GEXF\nOpção 6 do ConsoleMenu / DesktopController.exportGexfFiles()
+
+skinparam shadowing false
+
+actor Usuário
+
+participant "ConsoleMenu" as menu
+participant "GraphExportApplicationService" as exportApp
+participant "GraphBuildResult" as result
+participant "AbstractGraph" as graph
+participant "GexfExporter" as gexf
+participant "GephiPresentationExporter" as gephi
+participant "Sistema de arquivos" as fs
+
+Usuário -> menu : opção 6 / exportar GEXF
+
+alt lastBuildResult == null
+  menu --> Usuário : "Nenhum grafo carregado..."
+else grafos carregados
+  menu -> exportApp : exportAllGraphs(result)
+
+  exportApp -> fs : ensureDirectory(output/)
+
+  group 4 grafos brutos (labels v0, v1, …)
+    exportApp -> result : getCommentsGraph()
+    result --> exportApp : AbstractGraph
+    exportApp -> graph : exportToGEPHI(path)
+    graph -> gexf : export(graph, path)
+    gexf -> fs : comments-graph.gexf
+
+    exportApp -> result : getIssueClosureGraph()
+    exportApp -> graph : exportToGEPHI(path)
+    graph -> gexf : export(...)
+    gexf -> fs : issue-closure-graph.gexf
+
+    exportApp -> result : getPullRequestGraph()
+    exportApp -> graph : exportToGEPHI(path)
+    gexf -> fs : pull-request-graph.gexf
+
+    exportApp -> result : getIntegratedGraph()
+    exportApp -> graph : exportToGEPHI(path)
+    gexf -> fs : integrated-graph.gexf
+  end
+
+  group grafo de apresentação (recomendado para Gephi)
+    exportApp -> exportApp : exportIntegratedPresentationGraph(result, path)
+    exportApp -> gephi : exportIntegratedPresentationGraph(result, path)
+    note over gephi
+      labels reais (login GitHub)
+      layout radial + viz:size/color
+      realWeight + visualWeight
+    end note
+    gephi -> result : getIntegratedGraph()\ngetUserIndexMapper()
+    gephi -> fs : integrated-graph-gephi.gexf
+  end
+
+  exportApp --> menu : List<Path> (5 arquivos)
+  menu --> Usuário : formatGexfExportSuccessMessage()\n"Arquivo recomendado: integrated-graph-gephi.gexf"
+end
+
+@enduml

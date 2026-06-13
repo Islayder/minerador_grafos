@@ -1,0 +1,145 @@
+@startuml diagrama-pacotes
+title Diagrama de pacotes — br.pucminas.tgc.githubgraph
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+package "br.pucminas.tgc.githubgraph" {
+
+  package "app" as app #E8F4FD {
+    [Main]
+    [ConsoleMenu]
+    [DemoApplicationService]
+    [RealCollectionApplicationService]
+    [DemoDataFactory]
+    [StressApplicationService]
+    [StressDataFactory]
+  }
+
+  package "app.desktop" as desktop #D6EAF8 {
+    [DesktopMain]
+    [MainFrame]
+    [DesktopController]
+    [DesktopBackgroundTask]
+    [ReportFigureExporter]
+  }
+
+  package "github" as github #FFF3E0 {
+    [GitHubDataCollector]
+    [GitHubApiClient]
+    [GitHubJsonParser]
+    [GitHubInteractionMapper]
+    [CollectionPropertiesLoader]
+    [GitHubConfig]
+    [EnvironmentLoader]
+  }
+
+  package "model" as model #EEEEEE {
+    [RepositoryData]
+    [GitHubUser]
+    [GitHubInteraction]
+    [InteractionType]
+    [InteractionWeights]
+  }
+
+  package "service" as service #E8F5E9 {
+    [GraphBuilderService]
+    [GraphBuildResult]
+    [UserIndexMapper]
+    [InteractionWeightResolver]
+    [GraphSummaryService]
+    [GraphExportApplicationService]
+    [OutputReportService]
+    [ComparativeGraphAnalysisService]
+    [PerformanceTimer]
+  }
+
+  package "graph" as graph #F3E5F5 {
+    [AbstractGraph]
+  }
+
+  package "graph.impl" as impl #EDE7F6 {
+    [AdjacencyListGraph]
+    [AdjacencyMatrixGraph]
+  }
+
+  package "graph.exception" as gexc #FFEBEE {
+    [InvalidVertexException]
+    [LoopNotAllowedException]
+    [InconsistentGraphOperationException]
+  }
+
+  package "graph.demo" as gdemo #FCE4EC {
+    [GraphApiDemo]
+    [GraphApiDemonstrator]
+  }
+
+  package "analysis" as analysis #FFF8E1 {
+    [GraphAnalysisService]
+    [GraphMetricsReport]
+    [PageRankAnalyzer]
+    [BetweennessCentralityAnalyzer]
+    [EigenvectorCentralityAnalyzer]
+    [ClosenessCentralityAnalyzer]
+    [ClusteringCoefficientAnalyzer]
+    [DegreeAssortativityAnalyzer]
+    [CommunityDetectionService]
+    [BridgingTiesAnalyzer]
+    [DegreeMetrics]
+    [DensityAnalyzer]
+  }
+
+  package "export" as export #E0F2F1 {
+    [GexfExporter]
+    [GephiPresentationExporter]
+    [GexfFormat]
+  }
+}
+
+app --> service
+app --> analysis
+app --> github
+app --> model : via factories
+
+desktop --> app
+desktop --> service
+desktop --> analysis
+desktop --> github
+
+github --> model
+
+service --> model
+service --> graph
+service --> impl
+service --> analysis : OutputReportService
+
+graph --> export : exportToGEPHI
+graph --> gexc
+
+impl --> graph
+
+gdemo --> graph
+gdemo --> impl
+gdemo --> gexc
+
+analysis --> graph
+analysis --> service : UserIndexMapper
+
+export --> graph
+export --> impl
+export --> analysis : DegreeMetrics
+export --> service : GraphBuildResult,\nUserIndexMapper
+
+note right of app
+  Pontos de entrada:
+  • Main → ConsoleMenu
+  • DesktopMain → MainFrame
+  • GraphApiDemo (separado)
+end note
+
+note bottom of service
+  Orquestra construção,
+  resumo, exportação e relatórios
+end note
+
+@enduml

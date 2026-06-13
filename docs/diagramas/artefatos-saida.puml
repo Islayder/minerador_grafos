@@ -1,0 +1,84 @@
+@startuml artefatos-saida
+title Artefatos de saída em output/\nGerados após construção dos grafos (giscus/giscus)
+
+skinparam shadowing false
+skinparam componentStyle rectangle
+
+package "Aplicação" as app {
+
+  component [ConsoleMenu\nopção 6] as menuExport
+  component [ConsoleMenu\nopção 7] as menuReport
+  component [DesktopController] as desktop
+
+  component [GraphExportApplicationService] as exportSvc
+  component [OutputReportService] as reportSvc
+  component [GraphSummaryService] as summarySvc
+  component [GraphAnalysisService] as analysisSvc
+  component [ComparativeGraphAnalysisService] as compareSvc
+}
+
+folder "output/" as output #F5F5F5 {
+
+  together {
+    component [comments-graph.gexf] as f1
+    component [issue-closure-graph.gexf] as f2
+    component [pull-request-graph.gexf] as f3
+    component [integrated-graph.gexf] as f4
+    component [integrated-graph-gephi.gexf] as f5 <<recomendado>>
+  }
+
+  together {
+    component [graph-summary.txt] as t1
+    component [integrated-analysis.txt] as t2
+    component [comparative-analysis.txt] as t3
+  }
+}
+
+component [Gephi] as gephi
+actor Usuário
+
+menuExport --> exportSvc
+desktop --> exportSvc
+exportSvc --> f1 : GexfExporter\n(labels vN)
+exportSvc --> f2
+exportSvc --> f3
+exportSvc --> f4 : GexfExporter
+exportSvc --> f5 : GephiPresentationExporter\n(logins + layout + viz)
+
+menuReport --> reportSvc
+desktop --> reportSvc
+reportSvc --> summarySvc
+reportSvc --> analysisSvc
+reportSvc --> compareSvc
+
+summarySvc --> t1 : resumo dos 4 grafos,\ntop arestas, graus amostra
+analysisSvc --> t2 : 11 blocos de métricas\ndo grafo integrado
+compareSvc --> t3 : densidade e arestas\ncomparando os 4 grafos
+
+f5 --> gephi : importação visual
+t1 --> Usuário
+t2 --> Usuário
+t3 --> Usuário
+
+note right of f5
+  **Recomendado para apresentação**
+  • nós com login real
+  • posição radial por grau
+  • peso real + visualWeight
+end note
+
+note bottom of t2
+  Conteúdo típico:
+  grau, densidade, PageRank,
+  eigenvector, closeness, betweenness,
+  clustering, assortatividade,
+  comunidades, bridging ties,
+  aberturas de PR por usuário
+end note
+
+note bottom of output
+  Diretório padrão: output/
+  (user.dir/output ou override em testes)
+end note
+
+@enduml

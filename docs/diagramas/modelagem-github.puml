@@ -1,0 +1,103 @@
+@startuml modelagem-github
+title De RepositoryData aos quatro grafos — camada service + graph\nRepositório: giscus/giscus
+
+skinparam shadowing false
+
+package "br.pucminas.tgc.githubgraph.model" as model #EEEEEE {
+  class RepositoryData <<aggregate>> {
+    entrada do domínio
+    (ver classes-dominio.puml)
+  }
+}
+
+package "br.pucminas.tgc.githubgraph.service" as service {
+
+  class UserIndexMapper {
+    - usersByIndex : List<GitHubUser>
+    - indexByUser : Map
+    __
+    Ordem alfabética de logins
+    + getIndex(user) : int
+    + getUser(index) : GitHubUser
+    + getUserCount() : int
+  }
+
+  class InteractionWeightResolver {
+    + resolve(type) : double
+    --
+    Delega pesos de InteractionWeights
+  }
+
+  class GraphBuilderService {
+    + build(repositoryData) : GraphBuildResult
+    --
+    Usa AdjacencyListGraph
+  }
+
+  class GraphBuildResult {
+    - userIndexMapper : UserIndexMapper
+    - commentsGraph : AbstractGraph
+    - issueClosureGraph : AbstractGraph
+    - pullRequestGraph : AbstractGraph
+    - integratedGraph : AbstractGraph
+    - pullRequestsOpenedByUser : Map
+    __
+    + getCommentsGraph() : AbstractGraph
+    + getIssueClosureGraph() : AbstractGraph
+    + getPullRequestGraph() : AbstractGraph
+    + getIntegratedGraph() : AbstractGraph
+  }
+}
+
+package "br.pucminas.tgc.githubgraph.graph" as graph {
+
+  abstract class AbstractGraph {
+    Vértices 0 .. n-1
+    API comum (Etapa 2)
+  }
+}
+
+package "br.pucminas.tgc.githubgraph.graph.impl" as graphImpl {
+
+  class AdjacencyListGraph {
+    representação usada
+    na construção
+  }
+}
+
+GraphBuilderService ..> RepositoryData : lê interações\ne usuários
+GraphBuilderService ..> UserIndexMapper : cria a partir\nde getAllUsers()
+GraphBuilderService ..> InteractionWeightResolver : resolve peso
+GraphBuilderService ..> GraphBuildResult : produz
+GraphBuilderService ..> AdjacencyListGraph : instancia 4 grafos
+
+AdjacencyListGraph -up-|> AbstractGraph : graph.impl
+
+GraphBuildResult *-- UserIndexMapper
+GraphBuildResult o-- AbstractGraph : commentsGraph
+GraphBuildResult o-- AbstractGraph : issueClosureGraph
+GraphBuildResult o-- AbstractGraph : pullRequestGraph
+GraphBuildResult o-- AbstractGraph : integratedGraph
+
+note bottom of GraphBuilderService
+  **Grafos separados**
+  Uma aresta por par (u, v); peso fixo
+  do tipo na primeira ocorrência.
+
+  **Grafo integrado**
+  Peso acumulado por par (u, v);
+  addEdge idempotente + soma de pesos.
+end note
+
+note right of UserIndexMapper
+  Login GitHub → índice inteiro
+  usado por AbstractGraph
+end note
+
+note bottom of GraphBuildResult
+  pullRequestsOpenedByUser repassado
+  de RepositoryData para análise
+  (seção 11 do relatório de métricas)
+end note
+
+@enduml
