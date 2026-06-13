@@ -1,0 +1,15 @@
+target/
+output/
+cache/
+.env
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+*.class
+*.jar
+!pom.xml
+.DS_Store
+scripts/
+docs/scripts/
